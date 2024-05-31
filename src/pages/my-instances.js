@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import router from "next/router";
-import "tailwindcss/tailwind.css";
 
 // Components
 import Pagination from "@/Components/Pagination";
 import Modal from "@/Components/Modal";
 import InstancesList from "@/Components/InstancesList";
 
-export default function Home() {
+const MyInstances = () => {
   const [instances, setInstances] = useState([]);
   const [selectedInstance, setSelectedInstance] = useState(null);
 
@@ -23,31 +21,33 @@ export default function Home() {
   );
 
   useEffect(() => {
-    // Fetch all active instances from the API
-    fetch("http://localhost:8080/instances/types")
+    // Fetch all active user instances from the API
+    fetch("http://localhost:8080/instances/")
       .then((response) => response.json())
-      .then((data) => setInstances([...data, ...data]));
+      .then((data) => setInstances([...data]));
   }, []);
 
-  const createInstance = (instanceName, instance) => {
-    fetch("http://localhost:8080/instances/create", {
-      method: "POST",
-      body: JSON.stringify({
-        cloud: instance?.cloud,
-        region: instance?.availability[0]?.region,
-        shade_instance_type: instance?.shade_instance_type,
-        shade_cloud: true,
-        name: instanceName,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
+  const deleteInstance = (instance) => {
+    const instanceId = instance.id;
+    // Make a DELETE request to the API to delete the instance
+    fetch(`http://localhost:8080/instances/delete?instanceId=${instanceId}`, {
+      method: "DELETE",
     })
-      .then((response) => response.json())
-      .then(() => {
-        handleCloseModal();
-        // Forward to the new page
-        router.push("/my-instances");
+      .then((response) => {
+        if (response.ok) {
+          const updatedInstances = instances.filter(
+            (instance) => instance.id !== instanceId
+          );
+          setInstances(updatedInstances);
+          if (selectedInstance && selectedInstance.id === instanceId) {
+            setSelectedInstance(null);
+          }
+        } else {
+          throw new Error("Failed to delete instance");
+        }
+      })
+      .catch((error) => {
+        console.error(error);
       });
   };
 
@@ -60,11 +60,11 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-8">
-      <Link href="/my-instances" className="text-blue-500 underline">
-        Show my running instances
+    <main className="flex min-h-screen flex-col items-center p-8">
+      <Link href="/" className="text-blue-500 underline">
+        Add new instance
       </Link>
-      <h1 className="text-4xl font-bold mb-6">Shadeform Marketplace</h1>
+      <h1 className="text-4xl font-bold mb-6">My Instances</h1>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <InstancesList
           instances={currentInstances}
@@ -84,9 +84,11 @@ export default function Home() {
         <Modal
           handleCloseModal={handleCloseModal}
           selectedInstance={selectedInstance}
-          createInstance={createInstance}
+          deleteInstance={deleteInstance}
         />
       )}
     </main>
   );
-}
+};
+
+export default MyInstances;
